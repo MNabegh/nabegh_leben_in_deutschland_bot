@@ -14,7 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your script
-COPY script.py .
+COPY leben_in_deutschland_bot.py .
 
 # Run your script
-CMD ["python", "script.py"]
+CMD ["python", "leben_in_deutschland_bot.py"]

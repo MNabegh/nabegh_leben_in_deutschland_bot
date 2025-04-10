@@ -42,3 +42,62 @@ def check_einbuergerungstest():
     # Initialize the WebDriver
     try:
         driver = webdriver.Chrome(options=chrome_options)
+    except Exception as e:
+        logging.error(f"Error initializing WebDriver: {e}")
+        return False
+
+    appointment_found = False
+    try:
+        driver.get(url)
+        time.sleep(2)  # Wait for the page to load
+
+        # Click the search button
+        search_button = driver.find_element(By.CLASS_NAME, "button--negative")
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", search_button)
+        time.sleep(1)
+        search_button.click()
+        time.sleep(2)
+
+        # Check the page for appointment text
+        page_text = driver.page_source
+        if "Leider sind aktuell keine Termine für ihre Auswahl verfügbar." in page_text:
+            logging.info("No appointments available.")
+        else:
+            appointment_found = True
+            logging.warning("Appointments available or unexpected page state detected!")
+            send_telegram_notification("🚨 Appointment found on the Berlin Einbürgerungstest page! Please check immediately.")
+    except Exception as e:
+        logging.error(f"An error occurred while checking the page: {e}")
+    finally:
+        if appointment_found:
+            logging.info("Keeping browser open due to appointment alert (waiting 10 minutes before closing).")
+            time.sleep(600)  # Wait 10 minutes if an appointment is detected
+        else:
+            driver.quit()
+    return appointment_found
+
+# === Main Loop ===
+if __name__ == "__main__":
+    # Send a startup message and log that the script has started
+    logging.info("Script started: Monitoring the Berlin Einbürgerungstest page.")
+    send_telegram_notification("🟢 Deployment started: The script is running and monitoring the Berlin Einbürgerungstest page.")
+
+    # Track time for heartbeat messages
+    last_heartbeat = datetime.now()
+
+    while True:
+        try:
+            if check_einbuergerungstest():
+                # If an appointment is found, break out of the loop.
+                break
+
+            # Send heartbeat every 24 hours
+            if (datetime.now() - last_heartbeat) >= timedelta(hours=24):
+                send_telegram_notification("✅ Heartbeat: The script is still running.")
+                last_heartbeat = datetime.now()
+
+        except Exception as e:
+            logging.error(f"Unexpected error in main loop: {e}")
+
+        # Wait 30 seconds before checking again
+        time.sleep(30)
